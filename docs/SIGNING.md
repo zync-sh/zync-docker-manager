@@ -45,17 +45,32 @@ Ubuntu and Windows jobs install locked dependencies, check formatting, run unit
 tests, build/validate the package and run Chromium browser regressions. Artifacts
 are unsigned candidates. No signing secret is required for these checks.
 
-This workflow does not sign, tag, push or publish releases. No Git remote is
-configured in the local Docker repository at the time this setup is written.
+The check workflow does not sign, tag, push or publish releases. A separate
+`release.yml` workflow runs on stable version tags matching all package versions.
+It tests a clean candidate, signs in the protected environment, verifies the exact
+payload and publisher fingerprint, then publishes the signed ZIP and SHA-256 file.
+The publish job has no signing secrets and refuses to overwrite existing releases.
+No Git remote is configured locally yet.
 
-## Later release automation
+## Configure tag release automation
 
-For automatic signed tag releases, use the same separated candidate → protected
-signing → publishing structure as PM2. Add the publisher private key only to the
-Docker repository's protected `plugin-release` environment, not to pull-request
-checks. A repository variable can hold the public publisher-key fingerprint.
-An unencrypted key needs no passphrase secret. Do not assume PM2 repository
-secrets are automatically available in the Docker repository.
+Create the public `zync-sh/zync-docker-manager` repository and configure its
+`plugin-release` environment. Add these values:
+
+- Environment secret `DOCKER_PUBLISHER_PRIVATE_KEY`: complete publisher-v3 private PEM.
+- Optional environment secret `DOCKER_PUBLISHER_KEY_PASSPHRASE`: omit for your unencrypted key.
+- Repository variable `DOCKER_PUBLISHER_KEY_ID`: `sha256:eeccbf7e9cb69165aa2fce6df48a1128032930081f4c89d44a8b35155efdb125`.
+
+Enable required review by yourself with self-review prevention off if you are the
+only maintainer. Never expose these secrets to PR checks. PM2 repository secrets
+are not automatically available in the Docker repository. The root registry key
+must never be added to this plugin's signing environment.
+
+Once logged into GitHub, create/configure the repository and push only after
+reviewing and committing the release setup. Tag `v0.2.0` only after the environment
+is ready and CI is green. The tag must point to the committed workflow and source.
+Do not upload your local signed directory as an unsigned candidate; CI builds and
+signs the tested package itself.
 
 After publishing a verified signed archive, add the Docker release to the approved
 registry inputs and publish newly signed registry metadata. A signed package alone

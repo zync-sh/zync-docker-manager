@@ -4,6 +4,8 @@
 
 ### Added
 
+- Tag-based release workflow with separate tested-candidate, protected signing and publishing jobs; pinned publisher verification and signed ZIP/checksum artifacts.
+
 - GitHub Actions checks on Ubuntu and Windows for formatting, tests, package validation and browser regressions, with unsigned candidate artifacts.
 - Publisher-key reuse and local signing documentation; PR checks do not access signing secrets.
 
