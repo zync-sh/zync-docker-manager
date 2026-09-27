@@ -8,8 +8,12 @@ test("narrow embedded pane uses its own width rather than the browser viewport",
   await page.evaluate(() => {
     const frame = document.createElement("iframe");
     frame.src = "/";
+    frame.setAttribute(
+      "sandbox",
+      "allow-scripts allow-same-origin allow-modals",
+    );
     frame.style.cssText =
-      "position:fixed;inset:0;width:380px;height:350px;border:0";
+      "position:fixed;inset:0;width:380px;height:700px;border:0;z-index:100";
     frame.title = "Embedded pane";
     document.body.append(frame);
   });
@@ -22,6 +26,12 @@ test("narrow embedded pane uses its own width rather than the browser viewport",
     pane.getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect(pane.locator(".container-list")).toBeHidden();
+  await pane.getByRole("button", { name: "Exec / Shell", exact: true }).click();
+  await expect(pane.locator(".exec form")).toHaveCount(0);
+  await pane.getByLabel("Shell command").fill("whoami");
+  page.once("dialog", (dialog) => dialog.accept());
+  await pane.getByLabel("Shell command").press("Enter");
+  await expect(pane.locator(".exec-output")).toContainText("app");
   expect(
     await pane
       .locator(".workspace")
@@ -52,13 +62,20 @@ test("batch selection, logs, and confirmed shell commands work in preview", asyn
   ).toBeEnabled();
   await page.getByRole("button", { name: "Logs", exact: true }).click();
   await expect(page.locator(".log-lines")).toContainText("INFO");
-  await page.getByLabel("Log level").selectOption("errors");
+  await page.getByRole("button", { name: "Log level" }).click();
+  await page.getByRole("option", { name: "Errors", exact: true }).click();
   await expect(page.locator(".log-lines")).not.toContainText("INFO");
   await page.getByRole("button", { name: "Exec / Shell", exact: true }).click();
+  await expect(page.locator(".exec form")).toHaveCount(0);
   await page.getByLabel("Shell command").fill("whoami");
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.locator(".exec-output")).toContainText("app");
+  await page.getByLabel("Shell command").fill("pwd");
+  page.once("dialog", (d) => d.accept());
+  await page.getByLabel("Shell command").press("Enter");
+  await expect(page.locator(".exec-output")).toContainText("$ pwd");
+  await expect(page.getByLabel("Shell command")).toBeEnabled();
   expect(errors).toEqual([]);
 });
 test("production HTML loads through the chunked pane client without preview data", async ({

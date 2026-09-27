@@ -2,6 +2,12 @@
 
 Local, unsigned development plugin. Not published or marketplace-ready.
 
+See [the roadmap](docs/ROADMAP.md) for product phases, permissions, request pacing,
+architecture rules and release gates.
+
+See [signing and CI](docs/SIGNING.md) for publisher-key reuse, local signing commands,
+and automated validation.
+
 ## Workspace
 
 The UI follows the supplied Docker workspace reference: a compact header and
@@ -12,7 +18,7 @@ panes, without enlarging the host workspace.
 
 - Containers: search, running/stopped filters, Compose/network/no grouping, live CPU/memory
   samples and recent charts, native-confirmed start/stop/restart/remove.
-- Batch start/stop/restart: at most five containers per confirmed operation.
+- Whole-group start/stop/restart: sequential batches of up to five containers, with confirmation for each batch. Cancellation or failure stops remaining batches. Batch removal targets stopped containers only and keeps volumes.
 - Inspector: overview, filtered/polled logs, shell commands, masked environment
   values, published ports and mounts. Copy copies only the displayed value.
 - Images, volumes and networks: searchable, read-only Docker resource lists.
@@ -66,7 +72,7 @@ container's configured user and may change files or services. Install only trust
 plugins. Logs and environment variables can contain secrets; there is no telemetry
 or persistent storage in this plugin.
 
-Lists are bounded to 500 objects; batch operations to five. Logs request the last
+Lists are bounded to 500 objects; each confirmed batch is bounded to five. Logs request the last
 400 lines and display at most 48,000 characters. Metrics and open logs refresh
 every five seconds while the page is visible. Container membership/status refresh
 on explicit Refresh and after lifecycle actions. Resource deletion, image pulls,

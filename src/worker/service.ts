@@ -10,6 +10,7 @@ import type { Request } from "../domain/protocol";
 import type { TextResult } from "../domain/types";
 import { containerShell } from "../domain/exec";
 import { errorMessage } from "../domain/errors";
+import { allowsAction } from "../domain/actions";
 
 export class DockerError extends Error {
   constructor(
@@ -170,6 +171,11 @@ export async function queryDocker(
   }
   const targets = [];
   for (const id of request.ids) targets.push(await inspect(id));
+  if (targets.some((target) => !allowsAction(request.action, target.state)))
+    throw new DockerError(
+      `Selected containers cannot ${request.action} in their current state. Refresh before continuing.`,
+      "failed",
+    );
   if (
     request.action === "remove" &&
     targets.some(
@@ -198,7 +204,7 @@ export async function queryDocker(
   for (const target of targets) {
     try {
       const current = await inspect(target.id);
-      if (current.state !== target.state)
+      if (!allowsAction(request.action, current.state))
         throw new Error(
           "Container state changed while confirming. Refresh before retrying.",
         );

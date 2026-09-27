@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { installThemeBridge } from "@zync-sh/plugin-ui";
+import { installThemeBridge, installTooltips } from "@zync-sh/plugin-ui";
 import type { ZyncPaneApi } from "@zync-sh/plugin-sdk/pane";
 import { createHostClient } from "./client";
 import { createPreviewClient } from "../preview/client";
@@ -24,12 +24,14 @@ if (!window.zync && !__PREVIEW__) {
       ? createPreviewClient()
       : createHostClient(window.zync!);
   const removeThemeBridge = installThemeBridge();
+  const removeTooltips = installTooltips();
   root.render(<App client={client} preview={!window.zync} />);
   window.addEventListener(
     "pagehide",
     () => {
       client.dispose();
       removeThemeBridge();
+      removeTooltips();
     },
     { once: true },
   );

@@ -83,7 +83,7 @@ export function ResourceView({
               <div className="resource-grid resource-row" key={item.id}>
                 <strong>{item.name}</strong>
                 {item.values.map((value, i) => (
-                  <span key={i} title={value}>
+                  <span key={i} data-tooltip={value}>
                     {value}
                   </span>
                 ))}

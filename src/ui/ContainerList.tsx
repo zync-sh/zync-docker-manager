@@ -8,10 +8,13 @@ import {
   Square,
   RotateCw,
   X,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import type { Action, Container, Metric, Grouping } from "../domain/types";
 import { groupContainers } from "../domain/grouping";
+import { Select } from "./Select";
+import { allowsAction } from "../domain/actions";
 
 export function ContainerList({
   containers,
@@ -45,6 +48,9 @@ export function ContainerList({
   );
   const groups = groupContainers(visible, grouping);
   const picked = checked.filter((id) => containers.some((c) => c.id === id));
+  const removable = picked.filter((id) =>
+    containers.some((c) => c.id === id && allowsAction("remove", c.state)),
+  );
   const toggle = (ids: string[]) =>
     setChecked((previous) =>
       ids.every((id) => previous.includes(id))
@@ -76,7 +82,7 @@ export function ContainerList({
         </div>
         <label className="grouping-control">
           <span>Group by</span>
-          <select
+          <Select
             aria-label="Group containers by"
             value={grouping}
             onChange={(e) => {
@@ -87,7 +93,7 @@ export function ContainerList({
             <option value="compose">Compose project</option>
             <option value="network">Network</option>
             <option value="none">None</option>
-          </select>
+          </Select>
         </label>
       </div>
       {picked.length > 0 && (
@@ -95,22 +101,43 @@ export function ContainerList({
           <span>{picked.length} selected</span>
           {(["start", "stop", "restart"] as const).map((action, i) => {
             const Icon = [Play, Square, RotateCw][i];
+            const eligible = picked.filter((id) =>
+              containers.some(
+                (c) => c.id === id && allowsAction(action, c.state),
+              ),
+            );
             return (
               <button
                 key={action}
-                title={action}
+                data-tooltip={`${action} ${eligible.length} eligible container(s)`}
                 aria-label={`${action} selected containers`}
-                disabled={disabled || picked.length > 5}
-                onClick={() => onAction(action, picked)}
+                disabled={disabled || !eligible.length}
+                onClick={() => onAction(action, eligible)}
               >
                 <Icon size={14} />
               </button>
             );
           })}
+          <button
+            className="danger-icon"
+            aria-label="Remove selected stopped containers"
+            data-tooltip={
+              removable.length
+                ? `Remove ${removable.length} stopped container(s); volumes are kept`
+                : "Stop containers before removing them"
+            }
+            disabled={disabled || !removable.length}
+            onClick={() => onAction("remove", removable)}
+          >
+            <Trash2 size={14} />
+          </button>
           <button aria-label="Clear selection" onClick={() => setChecked([])}>
             <X size={14} />
           </button>
-          {picked.length > 5 && <small>Select at most 5 per action</small>}
+          <small>
+            {picked.length > 5 ? "Confirmed in batches of up to 5. " : ""}
+            Removal applies only to stopped containers; volumes are kept.
+          </small>
         </div>
       )}
       <div className="table-heading container-row">
@@ -186,7 +213,7 @@ export function ContainerList({
                       <strong>{c.name}</strong>
                       <small>{c.image}</small>
                     </button>
-                    <span className="image-column" title={c.image}>
+                    <span className="image-column" data-tooltip={c.image}>
                       {c.image}
                     </span>
                     <span

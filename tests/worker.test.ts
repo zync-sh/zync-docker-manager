@@ -54,7 +54,12 @@ test("bundled Worker validates, confirms and returns real Exec output over chunk
       },
     },
   };
-  vm.runInNewContext(bundled.outputFiles[0].text, { zync: api });
+  vm.runInNewContext(bundled.outputFiles[0].text, {
+    zync: api,
+    setTimeout,
+    clearTimeout,
+    AbortController,
+  });
   const run = () =>
     new Promise<Record<string, unknown>>((resolve) => {
       content = "";

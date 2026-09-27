@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Search, RefreshCw } from "lucide-react";
 import { usePaneVisibility } from "./usePaneVisibility";
+import { Select } from "./Select";
 import type { Connection, DockerClient, TextResult } from "../domain/types";
 export function LogViewer({
   client,
@@ -75,7 +76,7 @@ export function LogViewer({
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
-        <select
+        <Select
           aria-label="Log level"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -83,7 +84,7 @@ export function LogViewer({
           <option value="all">All levels</option>
           <option value="errors">Errors</option>
           <option value="warnings">Warnings</option>
-        </select>
+        </Select>
         <button
           aria-pressed={live}
           onClick={() => setLive(!live)}

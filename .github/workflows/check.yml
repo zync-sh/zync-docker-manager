@@ -1,0 +1,53 @@
+name: Docker plugin checks
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Validate (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run check
+      - name: Install browser and Linux dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+      - name: Install browser on Windows
+        if: runner.os == 'Windows'
+        run: npx playwright install chromium
+      - run: npm run test:browser
+      - name: Upload validated unsigned candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-manager-candidate-${{ runner.os }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-manager-test-results-${{ runner.os }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

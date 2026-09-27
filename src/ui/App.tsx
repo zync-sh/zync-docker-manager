@@ -18,6 +18,8 @@ import { Inspector } from "./Inspector";
 import { ResourceView } from "./ResourceView";
 import { DockerIcon } from "./DockerIcon";
 import { LoadingState } from "./LoadingState";
+import { runContainerAction } from "./runContainerAction";
+import { Select } from "./Select";
 
 export function App({
   client,
@@ -42,14 +44,26 @@ export function App({
     setBusy(true);
     setNotice("Waiting for confirmation…");
     try {
-      const result = await client.action(operation, ids, snapshot);
+      const result = await runContainerAction(
+        client,
+        operation,
+        ids,
+        snapshot,
+        (completed, total) => {
+          setNotice(
+            `${operation}: ${completed}/${total} completed. Waiting for confirmation of the next batch…`,
+          );
+        },
+      );
       setNotice(
         result.canceled
-          ? "Action canceled."
-          : result.failed ||
+          ? `Action canceled. ${result.completed.length} container(s) completed; remaining containers were not changed.`
+          : (result.failed
+              ? `${result.completed.length} confirmed completed. ${result.failed}`
+              : undefined) ||
               `${operation[0].toUpperCase() + operation.slice(1)} completed for ${result.completed.length} container(s).`,
       );
-      if (!result.canceled) await refresh();
+      if (!result.canceled || result.completed.length) await refresh();
     } catch (failure) {
       setNotice(failure instanceof Error ? failure.message : "Action failed.");
       await refresh();
@@ -95,7 +109,7 @@ export function App({
           <div className="header-tools">
             {preview && (
               <>
-                <select
+                <Select
                   aria-label="Preview state"
                   defaultValue="connected"
                   onChange={(e) => {
@@ -117,7 +131,7 @@ export function App({
                   ].map((state) => (
                     <option key={state}>{state}</option>
                   ))}
-                </select>
+                </Select>
                 <button
                   aria-label="Toggle preview theme"
                   onClick={() => setLight(!light)}
@@ -128,7 +142,7 @@ export function App({
             )}
             <button
               aria-label="Refresh Docker"
-              title="Refresh Docker"
+              data-tooltip="Refresh Docker"
               disabled={busy || loading}
               onClick={() => void refresh()}
             >
@@ -236,7 +250,7 @@ export function App({
           <button
             aria-pressed={workspace.autoRefresh}
             onClick={() => workspace.setAutoRefresh(!workspace.autoRefresh)}
-            title="Toggle metric refresh"
+            data-tooltip="Toggle metric refresh"
           >
             {workspace.autoRefresh ? "Live metrics" : "Metrics paused"}
           </button>

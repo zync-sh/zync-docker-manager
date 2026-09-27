@@ -1,4 +1,4 @@
-import { LoaderCircle } from "lucide-react";
+import { DockerIcon } from "./DockerIcon";
 
 export function LoadingState({
   title = "Reading Docker containers…",
@@ -16,7 +16,7 @@ export function LoadingState({
       aria-busy="true"
     >
       <div className="loading-symbol" aria-hidden="true">
-        <LoaderCircle size={21} className="spinning" />
+        <DockerIcon />
       </div>
       <h2>{title}</h2>
       {!compact && (

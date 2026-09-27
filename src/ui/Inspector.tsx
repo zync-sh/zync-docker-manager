@@ -24,6 +24,7 @@ import type {
 import { LogViewer } from "./LogViewer";
 import { ExecConsole } from "./ExecConsole";
 import { LoadingState } from "./LoadingState";
+import { allowsAction, primaryAction } from "../domain/actions";
 
 function Values({
   values,
@@ -69,7 +70,7 @@ function Values({
             )}
             <button
               aria-label={`Copy ${key || "value"}`}
-              title={copied === i ? "Copied" : "Copy displayed value"}
+              data-tooltip={copied === i ? "Copied" : "Copy displayed value"}
               onClick={async () => {
                 try {
                   if (!navigator.clipboard)
@@ -196,22 +197,23 @@ export function Inspector({
       </header>
       <div className="container-actions">
         <button
-          disabled={disabled}
+          disabled={
+            disabled ||
+            !allowsAction(primaryAction(container.state), container.state)
+          }
           onClick={() =>
-            onAction(container.state === "running" ? "stop" : "start", [
-              container.id,
-            ])
+            onAction(primaryAction(container.state), [container.id])
           }
         >
-          {container.state === "running" ? (
+          {primaryAction(container.state) === "stop" ? (
             <Square size={13} />
           ) : (
             <Play size={13} />
           )}{" "}
-          {container.state === "running" ? "Stop" : "Start"}
+          {primaryAction(container.state) === "stop" ? "Stop" : "Start"}
         </button>
         <button
-          disabled={disabled}
+          disabled={disabled || !allowsAction("restart", container.state)}
           onClick={() => onAction("restart", [container.id])}
         >
           <RotateCw size={13} />
@@ -220,14 +222,12 @@ export function Inspector({
         <button
           className="danger-icon"
           aria-label="Remove container"
-          title={
+          data-tooltip={
             container.state === "running"
               ? "Stop the container before removing it"
               : "Remove container (volumes are kept)"
           }
-          disabled={
-            disabled || !["exited", "created", "dead"].includes(container.state)
-          }
+          disabled={disabled || !allowsAction("remove", container.state)}
           onClick={() => onAction("remove", [container.id])}
         >
           <Trash2 size={14} />
@@ -238,6 +238,7 @@ export function Inspector({
           <button
             key={value}
             aria-current={tab === value ? "page" : undefined}
+            disabled={disabled}
             onClick={() => setTab(value)}
           >
             {label}

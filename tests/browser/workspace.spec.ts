@@ -1,4 +1,21 @@
 import { test, expect } from "@playwright/test";
+
+test("search has one unified focus boundary", async ({ page }) => {
+  await page.goto("/");
+  const input = page.getByRole("textbox", { name: "Search containers" });
+  await input.focus();
+  expect(
+    await input.evaluate((element) => getComputedStyle(element).outlineStyle),
+  ).toBe("none");
+  expect(
+    await input.evaluate((element) => getComputedStyle(element).borderTopWidth),
+  ).toBe("0px");
+  expect(
+    await input.evaluate(
+      (element) => getComputedStyle(element.parentElement!).boxShadow,
+    ),
+  ).not.toBe("none");
+});
 for (const width of [320, 480, 900, 1600])
   test(`workspace fits ${width}px and opens every inspector tab`, async ({
     page,
@@ -74,10 +91,12 @@ test("preview failure states and light theme remain usable", async ({
 }) => {
   await page.goto("/");
   for (const state of ["permission", "unavailable", "disconnected", "failed"]) {
-    await page.getByLabel("Preview state").selectOption(state);
+    await page.getByRole("button", { name: "Preview state" }).click();
+    await page.getByRole("option", { name: state, exact: true }).click();
     await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   }
-  await page.getByLabel("Preview state").selectOption("empty");
+  await page.getByRole("button", { name: "Preview state" }).click();
+  await page.getByRole("option", { name: "empty", exact: true }).click();
   await expect(page.getByText("No containers found")).toBeVisible();
   await page.getByRole("button", { name: "Toggle preview theme" }).click();
   await expect(page.locator(".docker-host")).toHaveAttribute(

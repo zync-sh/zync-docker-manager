@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2, Terminal, Copy } from "lucide-react";
 import type { Connection, DockerClient } from "../domain/types";
+import { Select } from "./Select";
 import {
   interactiveCommand,
   validateExecInput,
@@ -32,6 +33,17 @@ export function ExecConsole({
   const history = useRef<string[]>([]),
     position = useRef(0),
     lock = useRef(false);
+  const outputElement = useRef<HTMLDivElement>(null);
+  const inputElement = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const element = outputElement.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [output, busy]);
+
+  useEffect(() => {
+    if (!busy && running && !disabled) inputElement.current?.focus();
+  }, [busy, running, disabled]);
   const submit = async () => {
     if (lock.current || !input.trim() || !running || disabled) return;
     try {
@@ -86,9 +98,10 @@ export function ExecConsole({
     <div className="exec">
       <div className="exec-heading">
         <Terminal size={14} />
-        <strong>Container shell commands</strong>
+        <strong>Container command runner</strong>
         <button
           aria-label="Clear command output"
+          data-tooltip="Clear command output"
           disabled={busy}
           onClick={() => setOutput([])}
         >
@@ -96,13 +109,14 @@ export function ExecConsole({
         </button>
       </div>
       <p className="hint">
-        Run a command inside this container. Commands have a 20-second limit;
-        interactive programs need a regular terminal.
+        Each command runs in a new shell after confirmation (20-second limit).
+        For an interactive session, copy the command and paste it into this
+        server’s terminal.
       </p>
       <div className="shell-tools">
         <label>
           Shell
-          <select
+          <Select
             aria-label="Container shell"
             value={shell}
             disabled={busy || disabled}
@@ -110,7 +124,7 @@ export function ExecConsole({
           >
             <option value="sh">sh</option>
             <option value="bash">bash</option>
-          </select>
+          </Select>
         </label>
         <button
           disabled={!running}
@@ -130,10 +144,11 @@ export function ExecConsole({
           Copy interactive shell
         </button>
       </div>
-      <div className="interactive-shell">
+      <details className="interactive-shell">
+        <summary>Interactive terminal command</summary>
         <code>{interactiveCommand(id, shell)}</code>
         {copyStatus && <small role="status">{copyStatus}</small>}
-      </div>
+      </details>
       {!running && (
         <p className="inline-error">
           {state === "restarting"
@@ -148,20 +163,26 @@ export function ExecConsole({
           {error}
         </p>
       )}
-      <div className="console exec-output" aria-live="polite">
+      <div
+        className="console exec-output"
+        ref={outputElement}
+        aria-live="polite"
+        tabIndex={0}
+        aria-label="Command output"
+      >
         {output.length
           ? output.map((entry, i) => <pre key={i}>{entry}</pre>)
-          : "Run a command to inspect this container."}
+          : "Enter a command below, such as pwd or whoami.\nCommands do not keep shell state between runs; use cd /path && your-command when needed."}
         {busy && <p>Waiting for confirmation or command output…</p>}
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
+      <div
+        className="command-input"
+        role="group"
+        aria-label="Run container command"
       >
         <span>$</span>
         <input
+          ref={inputElement}
           aria-label="Shell command"
           placeholder="e.g. pwd"
           maxLength={1000}
@@ -169,6 +190,11 @@ export function ExecConsole({
           disabled={busy || !running || disabled}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              void submit();
+              return;
+            }
             if (e.key === "ArrowUp" || e.key === "ArrowDown") {
               e.preventDefault();
               position.current = Math.max(
@@ -183,12 +209,13 @@ export function ExecConsole({
           }}
         />
         <button
-          type="submit"
+          type="button"
+          onClick={() => void submit()}
           disabled={busy || !running || disabled || !input.trim()}
         >
           Run
         </button>
-      </form>
+      </div>
     </div>
   );
 }

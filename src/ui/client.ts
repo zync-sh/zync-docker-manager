@@ -1,6 +1,7 @@
 import type { ZyncPaneApi } from "@zync-sh/plugin-sdk/pane";
 import type { Query } from "../domain/protocol";
 import type { DockerClient, Connection } from "../domain/types";
+import { requestTimeout } from "../domain/requestTimeout";
 export type { DockerClient } from "../domain/types";
 export class RequestError extends Error {
   constructor(
@@ -74,19 +75,17 @@ export function createHostClient(api: ZyncPaneApi): DockerClient {
               return;
             }
             const requestId = `${frameId}-${++sequence}`;
-            const timer = setTimeout(
-              () => {
-                pending.delete(requestId);
-                reject(
-                  new RequestError(
-                    "Operation timed out. Its outcome may be unknown; refresh before retrying.",
-                  ),
-                );
-              },
-              query.type === "action" || query.type === "exec"
-                ? 300_000
-                : 90_000,
-            );
+            const timer = setTimeout(() => {
+              try {
+                api.pane.postMessage({ type: "cancel", requestId });
+              } catch {}
+              pending.delete(requestId);
+              reject(
+                new RequestError(
+                  "Operation timed out. Its outcome may be unknown; refresh before retrying.",
+                ),
+              );
+            }, requestTimeout(query.type));
             pending.set(requestId, {
               resolve: (value) => resolve(value as T),
               reject,
@@ -94,7 +93,11 @@ export function createHostClient(api: ZyncPaneApi): DockerClient {
               text: "",
             });
             try {
-              api.pane.postMessage({ ...query, requestId });
+              api.pane.postMessage({
+                ...query,
+                requestId,
+                deadlineAt: Date.now() + requestTimeout(query.type),
+              });
             } catch (error) {
               clearTimeout(timer);
               pending.delete(requestId);
@@ -128,7 +131,10 @@ export function createHostClient(api: ZyncPaneApi): DockerClient {
       if (disposed) return;
       disposed = true;
       unsubscribe();
-      pending.forEach((entry) => {
+      pending.forEach((entry, requestId) => {
+        try {
+          api.pane.postMessage({ type: "cancel", requestId });
+        } catch {}
         clearTimeout(entry.timer);
         entry.reject(new RequestError("Pane closed."));
       });
