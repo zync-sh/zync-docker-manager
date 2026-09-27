@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 2,
+  "id": "com.zync.plugin.docker-manager",
+  "name": "Docker Manager",
+  "icon": "icons/docker-manager.svg",
+  "version": "0.2.0",
+  "publisher": "com.zync",
+  "license": "MIT",
+  "description": "Manage containers, inspect Docker resources, and view metrics and logs on this pane's server.",
+  "engines": { "zync": ">=2.33.1", "pluginApi": "^2.1.0" },
+  "runtime": { "entry": "worker.js" },
+  "contributes": {
+    "paneKinds": [
+      {
+        "id": "docker.manager",
+        "title": "Docker Manager",
+        "entry": "ui/index.html",
+        "allowMultiple": true
+      }
+    ]
+  },
+  "permissions": {
+    "required": [
+      {
+        "id": "ui.pane.register",
+        "reason": "Open independent Docker workspace panes."
+      },
+      {
+        "id": "ssh.command.execute",
+        "reason": "Inspect and manage Docker on this pane's server. Commands run with your SSH account's authority; Docker access may grant root-equivalent authority."
+      },
+      {
+        "id": "ui.dialog.confirm",
+        "reason": "Confirm container changes and shell commands before execution."
+      }
+    ]
+  }
+}
