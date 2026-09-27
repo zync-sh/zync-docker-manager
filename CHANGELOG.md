@@ -18,6 +18,8 @@
 
 ### Changed
 
+- Consistent LF checkouts keep Windows formatting checks aligned with Ubuntu; narrow headers wrap enhanced controls without horizontal overflow.
+
 - Expired or canceled requests are checked before dispatch; pending approval no longer blocks SSH reads in other panes. Commands already dispatched cannot be undone.
 - Shared container-state rules offer Stop for restarting containers, disable unsupported paused-state actions, and filter group actions to eligible targets.
 

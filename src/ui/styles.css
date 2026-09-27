@@ -206,6 +206,7 @@ strong {
 }
 .workspace-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   min-height: 48px;
@@ -1132,9 +1133,6 @@ progress::-webkit-progress-value {
   .container-name small {
     display: block;
   }
-  .header-tools select {
-    display: none;
-  }
 }
 @container (max-width:520px) {
   .workspace-header {
@@ -1147,9 +1145,6 @@ progress::-webkit-progress-value {
   }
   .brand > small {
     max-width: 160px;
-  }
-  .header-tools select {
-    max-width: 68px;
   }
   .connection-badge {
     display: none;

@@ -1,5 +1,30 @@
 import { test, expect } from "@playwright/test";
 
+test("narrow header keeps enhanced controls inside the pane", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("/");
+  await page.addStyleTag({
+    content: "body { font-family: Arial, sans-serif; }",
+  });
+
+  const header = page.locator(".workspace-header");
+  await expect(
+    page.getByRole("button", { name: "Preview state" }),
+  ).toBeVisible();
+  expect(
+    await header.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await page
+      .locator(".workspace")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+});
+
 test("search has one unified focus boundary", async ({ page }) => {
   await page.goto("/");
   const input = page.getByRole("textbox", { name: "Search containers" });
