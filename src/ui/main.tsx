@@ -5,6 +5,7 @@ import { createHostClient } from "./client";
 import { createPreviewClient } from "../preview/client";
 import { App } from "./App";
 import "./styles.css";
+import "./workspace.css";
 
 declare const __PREVIEW__: boolean;
 declare global {

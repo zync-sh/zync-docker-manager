@@ -28,10 +28,8 @@ test("narrow embedded pane uses its own width rather than the browser viewport",
   await expect(pane.locator(".container-list")).toBeHidden();
   await pane.getByRole("button", { name: "Exec / Shell", exact: true }).click();
   await expect(pane.locator(".exec form")).toHaveCount(0);
-  await pane.getByLabel("Shell command").fill("whoami");
-  page.once("dialog", (dialog) => dialog.accept());
-  await pane.getByLabel("Shell command").press("Enter");
-  await expect(pane.locator(".exec-output")).toContainText("app");
+  await expect(pane.getByLabel("Shell command")).toHaveCount(0);
+  await expect(pane.getByRole("status")).toContainText("updated Zync host");
   expect(
     await pane
       .locator(".workspace")
@@ -40,7 +38,7 @@ test("narrow embedded pane uses its own width rather than the browser viewport",
   await pane.getByRole("button", { name: "Back", exact: true }).click();
   await expect(pane.getByLabel("Search containers")).toBeVisible();
 });
-test("batch selection, logs, and confirmed shell commands work in preview", async ({
+test("batch selection, logs, and shell fallback work in preview", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -67,15 +65,14 @@ test("batch selection, logs, and confirmed shell commands work in preview", asyn
   await expect(page.locator(".log-lines")).not.toContainText("INFO");
   await page.getByRole("button", { name: "Exec / Shell", exact: true }).click();
   await expect(page.locator(".exec form")).toHaveCount(0);
-  await page.getByLabel("Shell command").fill("whoami");
-  page.once("dialog", (d) => d.accept());
-  await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.locator(".exec-output")).toContainText("app");
-  await page.getByLabel("Shell command").fill("pwd");
-  page.once("dialog", (d) => d.accept());
-  await page.getByLabel("Shell command").press("Enter");
-  await expect(page.locator(".exec-output")).toContainText("$ pwd");
-  await expect(page.getByLabel("Shell command")).toBeEnabled();
+  await expect(page.getByLabel("Shell command")).toHaveCount(0);
+  await page.getByLabel("Use a separate terminal", { exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Copy shell command", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator(".interactive-shell code")).toContainText(
+    "docker exec -it",
+  );
   expect(errors).toEqual([]);
 });
 test("production HTML loads through the chunked pane client without preview data", async ({

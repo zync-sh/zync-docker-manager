@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import {
   Container as ContainerIcon,
   Layers,
@@ -9,6 +9,7 @@ import {
   Sun,
   Moon,
   X,
+  CircleHelp,
 } from "lucide-react";
 import type { Action, DockerClient, Section } from "../domain/types";
 import type { PreviewClient, PreviewState } from "../preview/client";
@@ -20,6 +21,9 @@ import { DockerIcon } from "./DockerIcon";
 import { LoadingState } from "./LoadingState";
 import { runContainerAction } from "./runContainerAction";
 import { Select } from "./Select";
+import { WelcomeGuide } from "./WelcomeGuide";
+import { InspectorDivider } from "./InspectorDivider";
+import { useViewPreference } from "./useViewPreference";
 
 export function App({
   client,
@@ -34,6 +38,18 @@ export function App({
     [notice, setNotice] = useState(""),
     [light, setLight] = useState(false);
   const actionLock = useRef(false);
+  const [guideDismissed, setGuideDismissed] = useViewPreference(
+    "guideDismissed",
+    false,
+    (v): v is boolean => typeof v === "boolean",
+  );
+  const [inspectorWidth, setInspectorWidth] = useViewPreference(
+    "inspectorWidth",
+    44,
+    (v): v is number => typeof v === "number" && v >= 30 && v <= 65,
+  );
+  const [expanded, setExpanded] = useState(false);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
   const workspace = useWorkspace(client, busy);
   const { snapshot, loading, error, refresh, metrics, history } = workspace;
   const container = snapshot?.containers.find((c) => c.id === selected);
@@ -42,6 +58,7 @@ export function App({
     if (disabled || actionLock.current || !snapshot) return;
     actionLock.current = true;
     setBusy(true);
+    setPendingIds(ids);
     setNotice("Waiting for confirmation…");
     try {
       const result = await runContainerAction(
@@ -63,6 +80,15 @@ export function App({
               : undefined) ||
               `${operation[0].toUpperCase() + operation.slice(1)} completed for ${result.completed.length} container(s).`,
       );
+      if (result.failed || result.canceled) {
+        const names = snapshot.containers
+          .filter((c) => result.completed.includes(c.id))
+          .map((c) => c.name);
+        if (names.length)
+          setNotice(
+            (previous) => `${previous} Completed: ${names.join(", ")}.`,
+          );
+      }
       if (!result.canceled || result.completed.length) await refresh();
     } catch (failure) {
       setNotice(failure instanceof Error ? failure.message : "Action failed.");
@@ -70,6 +96,7 @@ export function App({
     } finally {
       actionLock.current = false;
       setBusy(false);
+      setPendingIds([]);
     }
   };
   const sections = [
@@ -107,6 +134,13 @@ export function App({
             </small>
           </div>
           <div className="header-tools">
+            <button
+              aria-label="Docker quick start"
+              data-tooltip="Docker quick start"
+              onClick={() => setGuideDismissed((value) => !value)}
+            >
+              <CircleHelp size={15} />
+            </button>
             {preview && (
               <>
                 <Select
@@ -166,6 +200,9 @@ export function App({
           ))}
         </nav>
         <div className="workspace-body">
+          {!guideDismissed && snapshot && !error && !container && (
+            <WelcomeGuide onDismiss={() => setGuideDismissed(true)} />
+          )}
           {loading && snapshot && (
             <div className="refresh-progress" role="status">
               {workspace.slowLoading
@@ -202,39 +239,61 @@ export function App({
             </div>
           ) : !snapshot ? (
             <LoadingState slow={workspace.slowLoading} />
-          ) : section === "containers" ? (
-            <div
-              className={`container-workspace ${container ? "has-inspector" : ""}`}
-            >
-              <ContainerList
-                containers={snapshot.containers}
-                metrics={metrics}
-                selected={selected}
-                onSelect={setSelected}
-                disabled={disabled}
-                onAction={(operation, ids) => void action(operation, ids)}
-              />
-              {container && (
-                <Inspector
-                  key={container.id}
-                  client={client}
-                  container={container}
-                  context={snapshot}
-                  metric={metrics.find((m) => m.id === container.id)}
-                  history={history[container.id] || []}
-                  onClose={() => setSelected(undefined)}
+          ) : (
+            <>
+              <div
+                hidden={section !== "containers"}
+                className={`container-workspace ${container ? "has-inspector" : ""} ${expanded && container ? "inspector-expanded" : ""}`}
+                style={
+                  { "--inspector-width": `${inspectorWidth}%` } as CSSProperties
+                }
+              >
+                <ContainerList
+                  containers={snapshot.containers}
+                  metrics={metrics}
+                  selected={selected}
+                  onSelect={setSelected}
                   disabled={disabled}
-                  onBusyChange={setBusy}
+                  pendingIds={pendingIds}
                   onAction={(operation, ids) => void action(operation, ids)}
                 />
+                {container && (
+                  <InspectorDivider
+                    value={inspectorWidth}
+                    onChange={setInspectorWidth}
+                  />
+                )}
+                {container && (
+                  <Inspector
+                    key={JSON.stringify([
+                      snapshot.connectionToken,
+                      snapshot.daemonId,
+                      container.id,
+                    ])}
+                    visible={section === "containers"}
+                    client={client}
+                    container={container}
+                    context={snapshot}
+                    metric={metrics.find((m) => m.id === container.id)}
+                    history={history[container.id] || []}
+                    onClose={() => setSelected(undefined)}
+                    expanded={expanded}
+                    onToggleExpanded={() => setExpanded((value) => !value)}
+                    disabled={disabled}
+                    onBusyChange={setBusy}
+                    onAction={(operation, ids) => void action(operation, ids)}
+                  />
+                )}
+              </div>
+              {section !== "containers" && (
+                <ResourceView
+                  key={section}
+                  client={client}
+                  section={section}
+                  context={snapshot}
+                />
               )}
-            </div>
-          ) : (
-            <ResourceView
-              client={client}
-              section={section}
-              context={snapshot}
-            />
+            </>
           )}
         </div>
         <footer className="workspace-footer">

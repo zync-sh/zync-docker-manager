@@ -5,12 +5,13 @@ import {
   Play,
   Square,
   RotateCw,
-  Trash2,
   Copy,
   Eye,
   EyeOff,
   Cpu,
   MemoryStick,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import type {
   Action,
@@ -22,9 +23,10 @@ import type {
   Snapshot,
 } from "../domain/types";
 import { LogViewer } from "./LogViewer";
-import { ExecConsole } from "./ExecConsole";
+import { ContainerShell } from "./ContainerShell";
 import { LoadingState } from "./LoadingState";
 import { allowsAction, primaryAction } from "../domain/actions";
+import { ContainerMoreActions } from "./ContainerMoreActions";
 
 function Values({
   values,
@@ -136,6 +138,9 @@ export function Inspector({
   onAction,
   disabled,
   onBusyChange,
+  expanded,
+  onToggleExpanded,
+  visible,
 }: {
   client: DockerClient;
   container: Container;
@@ -146,11 +151,16 @@ export function Inspector({
   onAction: (action: Action, ids: string[]) => void;
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
+  expanded: boolean;
+  onToggleExpanded(): void;
+  visible: boolean;
 }) {
   const [tab, setTab] = useState<DetailTab>("overview"),
     [details, setDetails] = useState<Inspection>(),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0);
+  // Tab visibility is independent from the lifetime of the owned terminal.
+  const [shellVisited, setShellVisited] = useState(false);
   useEffect(() => {
     let active = true;
     setDetails(undefined);
@@ -190,7 +200,17 @@ export function Inspector({
             {container.name}
           </h2>
           <code>{container.id.slice(0, 12)}</code>
+          <span className="inspector-state">{container.state}</span>
         </div>
+        <button
+          className="expand-inspector"
+          aria-label={
+            expanded ? "Restore details panel" : "Expand details panel"
+          }
+          onClick={onToggleExpanded}
+        >
+          {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+        </button>
         <button aria-label="Close inspector" onClick={onClose}>
           <X size={16} />
         </button>
@@ -219,27 +239,20 @@ export function Inspector({
           <RotateCw size={13} />
           Restart
         </button>
-        <button
-          className="danger-icon"
-          aria-label="Remove container"
-          data-tooltip={
-            container.state === "running"
-              ? "Stop the container before removing it"
-              : "Remove container (volumes are kept)"
-          }
-          disabled={disabled || !allowsAction("remove", container.state)}
-          onClick={() => onAction("remove", [container.id])}
-        >
-          <Trash2 size={14} />
-        </button>
+        <ContainerMoreActions
+          removable={!disabled && allowsAction("remove", container.state)}
+          onRemove={() => onAction("remove", [container.id])}
+        />
       </div>
       <nav className="detail-tabs" aria-label="Container details">
         {tabs.map(([value, label]) => (
           <button
             key={value}
             aria-current={tab === value ? "page" : undefined}
-            disabled={disabled}
-            onClick={() => setTab(value)}
+            onClick={() => {
+              if (value === "exec") setShellVisited(true);
+              setTab(value);
+            }}
           >
             {label}
           </button>
@@ -249,24 +262,15 @@ export function Inspector({
         className={`inspector-content ${tab === "logs" || tab === "exec" ? "console-content" : ""}`}
       >
         {tab === "logs" ? (
-          <LogViewer
-            key={container.id}
-            client={client}
-            id={container.id}
-            context={context}
-          />
-        ) : tab === "exec" ? (
-          <ExecConsole
-            key={container.id}
-            client={client}
-            id={container.id}
-            context={context}
-            running={container.state === "running"}
-            state={container.state}
-            disabled={disabled}
-            onBusyChange={onBusyChange}
-          />
-        ) : error ? (
+          visible && (
+            <LogViewer
+              key={container.id}
+              client={client}
+              id={container.id}
+              context={context}
+            />
+          )
+        ) : tab === "exec" ? null : error ? (
           <div className="empty" role="alert">
             <p>{error}</p>
             <button onClick={() => setRetry((n) => n + 1)}>
@@ -330,6 +334,19 @@ export function Inspector({
             values={details[tab]}
             secret={tab === "environment"}
           />
+        )}
+        {shellVisited && (
+          <div className="retained-shell" hidden={tab !== "exec" || !visible}>
+            <ContainerShell
+              client={client}
+              id={container.id}
+              context={context}
+              running={container.state === "running"}
+              state={container.state}
+              disabled={disabled || !visible || tab !== "exec"}
+              onBusyChange={onBusyChange}
+            />
+          </div>
         )}
       </div>
     </aside>

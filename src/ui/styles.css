@@ -59,7 +59,11 @@ body {
 .docker-host {
   --bg: var(--zui-background, #202831);
   --surface: var(--zui-surface, #252e38);
-  --muted-surface: var(--zui-surface, #29333e);
+  --muted-surface: color-mix(
+    in srgb,
+    var(--zui-text) 5%,
+    var(--zui-background)
+  );
   --text: var(--zui-text, #e1e8ef);
   --muted: var(--zui-muted, #91a0ae);
   --border: var(--zui-border, #394653);
@@ -67,8 +71,8 @@ body {
   --positive: var(--zui-positive, #69c896);
   --negative: var(--zui-negative, #f17881);
   --warning: var(--zui-warning, #e9b766);
-  --console: #121b23;
-  --console-text: #b5d6c4;
+  --console: var(--zui-background);
+  --console-text: var(--zui-text);
   height: 100%;
   width: 100%;
   min-width: 0;
@@ -93,9 +97,9 @@ body {
 }
 .docker-host[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #202831;
-  --surface: #252e38;
-  --muted-surface: #29333e;
+  --bg: #181a1e;
+  --surface: #202328;
+  --muted-surface: #282c32;
   --text: #e1e8ef;
   --muted: #91a0ae;
   --border: #394653;
@@ -506,7 +510,10 @@ strong {
   position: relative;
 }
 .container-workspace.has-inspector {
-  grid-template-columns: minmax(420px, 1.2fr) minmax(360px, 0.8fr);
+  grid-template-columns: minmax(360px, 1fr) 6px minmax(
+      330px,
+      min(var(--inspector-width, 44%), calc(100% - 366px))
+    );
 }
 .container-list {
   display: flex;
@@ -608,7 +615,7 @@ strong {
   white-space: nowrap;
 }
 .container-name strong {
-  font-size: 14px;
+  font-size: 12px;
 }
 .container-name small {
   display: none;
@@ -632,6 +639,7 @@ strong {
 }
 .row-metrics {
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 .row-metrics small {
@@ -696,7 +704,7 @@ strong {
 .inspector {
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--border);
+  border-left: 0;
   min-width: 0;
   min-height: 0;
   background: var(--surface);
@@ -941,56 +949,21 @@ progress::-webkit-progress-value {
   font-size: 11px;
   overflow-wrap: anywhere;
 }
-.exec-heading {
+.container-terminal {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 12px;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  border-bottom: 1px solid var(--border);
 }
-.exec-heading button {
-  margin-left: auto;
+.container-terminal-slot {
+  flex: 1;
+  min-height: 100px;
+  min-width: 240px;
+  margin: 8px;
 }
 .exec > .hint {
   padding: 0 12px;
-}
-.exec .command-input {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
-}
-.exec .command-input input {
-  flex: 1;
-  width: 0;
-  font-family: monospace;
-}
-.exec .command-input > span {
-  color: var(--positive);
-}
-.exec-output pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  margin: 0 0 10px;
-}
-.exec-output {
-  font:
-    12px/1.7 ui-monospace,
-    Consolas,
-    monospace;
-  min-height: 130px;
-}
-.exec .command-input {
-  background: var(--surface);
-  flex-shrink: 0;
-  padding: 12px;
-}
-.exec .command-input input {
-  min-height: 34px;
-}
-.exec .command-input button {
-  border-color: var(--border);
-  color: var(--primary);
 }
 .interactive-shell summary {
   cursor: pointer;
@@ -1094,6 +1067,10 @@ progress::-webkit-progress-value {
   }
 }
 @container (max-width:899px) {
+  .inspector-divider,
+  .expand-inspector {
+    display: none;
+  }
   .container-workspace.has-inspector {
     grid-template-columns: minmax(0, 1fr);
   }

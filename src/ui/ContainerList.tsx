@@ -15,6 +15,7 @@ import type { Action, Container, Metric, Grouping } from "../domain/types";
 import { groupContainers } from "../domain/grouping";
 import { Select } from "./Select";
 import { allowsAction } from "../domain/actions";
+import { useViewPreference } from "./useViewPreference";
 
 export function ContainerList({
   containers,
@@ -23,6 +24,7 @@ export function ContainerList({
   onSelect,
   onAction,
   disabled,
+  pendingIds,
 }: {
   containers: Container[];
   metrics: Metric[];
@@ -30,12 +32,17 @@ export function ContainerList({
   onSelect: (id: string) => void;
   onAction: (action: Action, ids: string[]) => void;
   disabled: boolean;
+  pendingIds: string[];
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [checked, setChecked] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<string[]>([]);
-  const [grouping, setGrouping] = useState<Grouping>("compose");
+  const [grouping, setGrouping] = useViewPreference<Grouping>(
+    "grouping",
+    "compose",
+    (v): v is Grouping => v === "compose" || v === "network" || v === "none",
+  );
   const visible = containers.filter(
     (c) =>
       `${c.name} ${c.image} ${c.project} ${c.networks.join(" ")}`
@@ -47,6 +54,7 @@ export function ContainerList({
           : ["exited", "created", "dead"].includes(c.state))),
   );
   const groups = groupContainers(visible, grouping);
+  const metricsById = new Map(metrics.map((metric) => [metric.id, metric]));
   const picked = checked.filter((id) => containers.some((c) => c.id === id));
   const removable = picked.filter((id) =>
     containers.some((c) => c.id === id && allowsAction("remove", c.state)),
@@ -67,8 +75,22 @@ export function ContainerList({
             placeholder="Search containers…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && search) {
+                e.stopPropagation();
+                setSearch("");
+              }
+            }}
           />
         </label>
+        {search && (
+          <button
+            aria-label="Clear container search"
+            onClick={() => setSearch("")}
+          >
+            <X size={14} />
+          </button>
+        )}
         <div className="segments">
           {["all", "running", "stopped"].map((value) => (
             <button
@@ -187,18 +209,20 @@ export function ContainerList({
                   <span>{project}</span>
                 </button>
                 <small>
-                  {items.filter((c) => c.state === "running").length}/
-                  {items.length} running
+                  {items.filter((c) => c.state === "running").length} running
+                  {items.some((c) => c.state !== "running") &&
+                    ` · ${items.filter((c) => c.state !== "running").length} not running`}
                 </small>
               </div>
             )}
             {!collapsed.includes(project) &&
               items.map((c) => {
-                const metric = metrics.find((m) => m.id === c.id);
+                const metric = metricsById.get(c.id);
                 return (
                   <div
                     key={c.id}
                     className={`container-row ${selected === c.id ? "selected" : ""}`}
+                    aria-busy={pendingIds.includes(c.id)}
                   >
                     <input
                       aria-label={`Select ${c.name}`}
@@ -208,6 +232,34 @@ export function ContainerList({
                     />
                     <button
                       className="container-name"
+                      aria-pressed={selected === c.id}
+                      title={c.name}
+                      onKeyDown={(event) => {
+                        if (
+                          !["ArrowDown", "ArrowUp", "Home", "End"].includes(
+                            event.key,
+                          )
+                        )
+                          return;
+                        const buttons = Array.from(
+                          event.currentTarget
+                            .closest(".list-scroll")!
+                            .querySelectorAll<HTMLButtonElement>(
+                              ".container-name",
+                            ),
+                        );
+                        const index = buttons.indexOf(event.currentTarget);
+                        const next =
+                          event.key === "Home"
+                            ? 0
+                            : event.key === "End"
+                              ? buttons.length - 1
+                              : index + (event.key === "ArrowDown" ? 1 : -1);
+                        event.preventDefault();
+                        buttons[
+                          Math.max(0, Math.min(buttons.length - 1, next))
+                        ]?.focus();
+                      }}
                       onClick={() => onSelect(c.id)}
                     >
                       <strong>{c.name}</strong>
@@ -220,7 +272,7 @@ export function ContainerList({
                       className={`status ${c.health === "unhealthy" || c.state === "restarting" ? "warning" : c.state === "running" ? "positive" : "muted"}`}
                     >
                       <i />
-                      {c.state}
+                      {pendingIds.includes(c.id) ? "Working…" : c.state}
                     </span>
                     <span className="row-metrics">
                       {metric ? (
@@ -246,6 +298,16 @@ export function ContainerList({
                 ? "Try another search or filter."
                 : "Containers on this Docker daemon will appear here."}
             </p>
+            {containers.length > 0 && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setFilter("all");
+                }}
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         )}
       </div>
