@@ -3,11 +3,11 @@
   "id": "com.zync.plugin.docker-manager",
   "name": "Docker Manager",
   "icon": "icons/docker-manager.svg",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "com.zync",
   "license": "MIT",
   "description": "Manage containers, inspect Docker resources, and view metrics and logs on this pane's server.",
-  "engines": { "zync": ">=2.33.1", "pluginApi": "^2.1.0" },
+  "engines": { "zync": ">=2.33.10", "pluginApi": "^2.1.0" },
   "runtime": { "entry": "worker.js" },
   "contributes": {
     "paneKinds": [

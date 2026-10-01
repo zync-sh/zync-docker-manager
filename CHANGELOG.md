@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Require Zync `2.33.10` or newer for embedded plugin terminals and dropdown
+  overlays, preventing installation on older hosts without those APIs.
+
 ## 0.3.0
 
 - Replace the command runner with host-owned interactive container terminals using
