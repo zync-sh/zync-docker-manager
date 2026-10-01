@@ -8,7 +8,7 @@ import {
 } from "../domain/docker";
 import type { Request } from "../domain/protocol";
 import type { TextResult } from "../domain/types";
-import { containerShell } from "../domain/exec";
+import { containerTerminalLaunch } from "../domain/exec";
 import { errorMessage } from "../domain/errors";
 import { allowsAction } from "../domain/actions";
 
@@ -67,6 +67,8 @@ export async function queryDocker(
   paneId: string,
   request: Request,
 ): Promise<unknown> {
+  if (request.type === "terminal" && !api.sshTerminal)
+    return { supported: false };
   let token = request.type === "snapshot" ? undefined : request.connectionToken;
   const run = async (args: string[], allowFailure = false) => {
     const result = await api.sshCommand.execute(paneId, {
@@ -141,33 +143,30 @@ export async function queryDocker(
     ]);
     return textResult(response.stdout, response.stderr);
   }
-  if (request.type === "exec") {
-    const target = await inspect(request.id);
-    if (target.state !== "running")
+  if (request.type === "terminal") {
+    const terminal = api.sshTerminal!;
+    // Capture the host lease before reads. Reconnects must not retarget this offer.
+    const captured = await terminal.context(paneId);
+    if (captured.connectionToken !== request.connectionToken)
       throw new DockerError(
-        "Start the container before running a command.",
-        "failed",
+        "Connection changed. Refresh before opening a terminal.",
+        "disconnected",
       );
-    const accepted = await api.ui.confirm({
-      title: `Run command in ${target.name.slice(0, 80)}?`,
-      message: `Server: ${info.host.name}\nContainer: ${target.name.slice(0, 80)} (${target.id.slice(0, 12)})\n\n${request.input}\n\nRuns as the container’s configured user and may change files or services.`,
-      confirmLabel: "Run command",
-    });
-    if (!accepted) return textResult("Command canceled.", "", 0);
     await verifyDaemon();
     if ((await inspect(request.id)).state !== "running")
-      throw new DockerError("Container is no longer running.", "failed");
-    const response = await run(
-      [
-        "exec",
+      throw new DockerError(
+        "Start the container before opening a terminal.",
+        "failed",
+      );
+    const offer = await terminal.prepare(
+      paneId,
+      containerTerminalLaunch(
         request.id,
-        containerShell(request.shell || "sh"),
-        "-c",
-        request.input,
-      ],
-      true,
+        request.shell,
+        captured.connectionToken,
+      ),
     );
-    return textResult(response.stdout, response.stderr, response.exitCode);
+    return { supported: true, ...offer };
   }
   const targets = [];
   for (const id of request.ids) targets.push(await inspect(id));

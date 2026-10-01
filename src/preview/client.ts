@@ -219,25 +219,6 @@ export function createPreviewClient(): PreviewClient {
             );
       return { canceled: false, completed: ids };
     },
-    async exec(id, input) {
-      await check();
-      find(id);
-      if (!window.confirm(`Run simulated command?\n${input}`))
-        return {
-          text: "Command canceled.",
-          truncated: false,
-          updatedAt: Date.now(),
-        };
-      return {
-        text:
-          input.trim() === "whoami"
-            ? "app"
-            : "Preview output: this command was simulated; no server was contacted.",
-        truncated: false,
-        updatedAt: Date.now(),
-        exitCode: 0,
-      };
-    },
     dispose() {},
   };
 }

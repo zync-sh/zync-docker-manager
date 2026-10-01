@@ -69,7 +69,15 @@ export interface ActionResult {
   completed: string[];
   failed?: string;
 }
+export type TerminalResult =
+  | { supported: false }
+  | { supported: true; offerId: string; expiresInMs: number };
 export interface DockerClient {
+  terminal?(
+    id: string,
+    context: Connection,
+    shell: Shell,
+  ): Promise<TerminalResult>;
   snapshot(): Promise<Snapshot>;
   metrics(context: Connection): Promise<Metric[]>;
   inspect(id: string, context: Connection): Promise<Inspection>;
@@ -83,11 +91,5 @@ export interface DockerClient {
     ids: string[],
     context: Connection,
   ): Promise<ActionResult>;
-  exec(
-    id: string,
-    input: string,
-    context: Connection,
-    shell?: Shell,
-  ): Promise<TextResult>;
   dispose(): void;
 }

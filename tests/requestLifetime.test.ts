@@ -107,13 +107,13 @@ test("approval waiting does not block other panes and canceled approval cannot c
 
 test("deadlines reject malformed values and cap client-supplied lifetimes", () => {
   assert.throws(
-    () => requestDeadline({ deadlineAt: "never" }, "exec", 0),
+    () => requestDeadline({ deadlineAt: "never" }, "terminal", 0),
     /Invalid/,
   );
   assert.throws(
-    () => requestDeadline({ deadlineAt: Infinity }, "exec", 0),
+    () => requestDeadline({ deadlineAt: Infinity }, "terminal", 0),
     /Invalid/,
   );
-  assert.equal(requestDeadline({ deadlineAt: 999999 }, "exec", 0), 300000);
-  assert.equal(requestDeadline({ deadlineAt: 100 }, "exec", 0), 100);
+  assert.equal(requestDeadline({ deadlineAt: 999999 }, "terminal", 0), 300000);
+  assert.equal(requestDeadline({ deadlineAt: 100 }, "terminal", 0), 100);
 });

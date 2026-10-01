@@ -2,6 +2,7 @@ import type { ZyncPaneApi } from "@zync-sh/plugin-sdk/pane";
 import type { Query } from "../domain/protocol";
 import type { DockerClient, Connection } from "../domain/types";
 import { requestTimeout } from "../domain/requestTimeout";
+import { parseTerminalResult } from "../domain/exec";
 export type { DockerClient } from "../domain/types";
 export class RequestError extends Error {
   constructor(
@@ -116,6 +117,10 @@ export function createHostClient(api: ZyncPaneApi): DockerClient {
     daemonId: context.daemonId,
   });
   return {
+    terminal: (id, context, shell) =>
+      request({ type: "terminal", id, shell, ...identity(context) }).then(
+        parseTerminalResult,
+      ),
     snapshot: () => request({ type: "snapshot" }),
     metrics: (context) => request({ type: "metrics", ...identity(context) }),
     inspect: (id, context) =>
@@ -125,8 +130,6 @@ export function createHostClient(api: ZyncPaneApi): DockerClient {
       request({ type: "resources", section, ...identity(context) }),
     action: (action, ids, context) =>
       request({ type: "action", action, ids, ...identity(context) }),
-    exec: (id, input, context, shell = "sh") =>
-      request({ type: "exec", id, input, shell, ...identity(context) }),
     dispose() {
       if (disposed) return;
       disposed = true;

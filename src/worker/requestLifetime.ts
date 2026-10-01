@@ -35,6 +35,28 @@ export function createRequestApi(
   };
   return {
     ...api,
+    ...(api.sshTerminal
+      ? {
+          sshTerminal: {
+            context: async (pane: string) => {
+              check();
+              const result = await api.sshTerminal!.context(pane);
+              check();
+              return result;
+            },
+            prepare: async (
+              ...args: Parameters<
+                NonNullable<ZyncWorkerApi["sshTerminal"]>["prepare"]
+              >
+            ) => {
+              check();
+              const result = await api.sshTerminal!.prepare(...args);
+              check();
+              return result;
+            },
+          },
+        }
+      : {}),
     sshCommand: {
       ...api.sshCommand,
       execute: (...args) =>

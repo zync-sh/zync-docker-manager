@@ -33,6 +33,12 @@
         "id": "ui.dialog.confirm",
         "reason": "Confirm container changes and shell commands before execution."
       }
+    ],
+    "optional": [
+      {
+        "id": "ssh.terminal.open",
+        "reason": "Open an interactive container shell in a Zync-owned terminal after your approval. Docker access can grant root-equivalent server authority."
+      }
     ]
   }
 }

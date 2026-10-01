@@ -2,25 +2,26 @@ import { build } from "esbuild";
 import vm from "node:vm";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-const id = "a".repeat(64);
-test("bundled Worker validates, confirms and returns real Exec output over chunks", async () => {
+
+test("bundled worker proposes fixed terminals and rejects the removed command runner", async () => {
   const bundled = await build({
     entryPoints: ["src/worker/index.ts"],
     bundle: true,
     format: "iife",
     write: false,
   });
+  const id = "a".repeat(64);
   let listener: (event: unknown) => void = () => {};
-  const calls: string[][] = [];
-  let confirmed = false;
-  let deny = false;
+  const commands: string[][] = [],
+    offers: unknown[] = [];
+  let content = "",
+    deny = false;
   let complete: (value: Record<string, unknown>) => void = () => {};
-  let content = "";
   const api = {
     on() {},
     panel: {
-      onMessage(fn: typeof listener) {
-        listener = fn;
+      onMessage(callback: typeof listener) {
+        listener = callback;
       },
       postMessage(
         _pane: string,
@@ -32,25 +33,30 @@ test("bundled Worker validates, confirms and returns real Exec output over chunk
         return Promise.resolve(true);
       },
     },
-    ui: {
-      confirm: async () => {
-        if (deny) throw "Permission ui.dialog.confirm denied";
-        confirmed = true;
-        return true;
-      },
-    },
     sshCommand: {
       execute: async (_pane: string, request: { args: string[] }) => {
-        calls.push([...request.args]);
-        const stdout =
-          request.args[0] === "info"
-            ? JSON.stringify({ ID: "daemon", Name: "host" })
-            : request.args[0] === "container"
-              ? JSON.stringify([
+        commands.push(request.args);
+        return {
+          stdout:
+            request.args[0] === "info"
+              ? JSON.stringify({ ID: "daemon", Name: "host" })
+              : JSON.stringify([
                   { Id: id, Config: {}, State: { Status: "running" } },
-                ])
-              : "app\n";
-        return { stdout, stderr: "", exitCode: 0, connectionToken: "token" };
+                ]),
+          stderr: "",
+          exitCode: 0,
+          connectionToken: "token",
+        };
+      },
+    },
+    sshTerminal: {
+      context: async () => {
+        if (deny) throw new Error("Permission denied");
+        return { connectionToken: "token" };
+      },
+      prepare: async (_pane: string, proposal: unknown) => {
+        offers.push(proposal);
+        return { offerId: "public-offer", expiresInMs: 60000 };
       },
     },
   };
@@ -60,6 +66,19 @@ test("bundled Worker validates, confirms and returns real Exec output over chunk
     clearTimeout,
     AbortController,
   });
+  listener({
+    paneInstanceId: "pane",
+    message: {
+      type: "exec",
+      requestId: "old",
+      id,
+      input: "whoami",
+      connectionToken: "token",
+      daemonId: "daemon",
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(commands.length, 0);
   const run = () =>
     new Promise<Record<string, unknown>>((resolve) => {
       content = "";
@@ -67,21 +86,27 @@ test("bundled Worker validates, confirms and returns real Exec output over chunk
       listener({
         paneInstanceId: "pane",
         message: {
+          type: "terminal",
           requestId: "request",
-          type: "exec",
           id,
-          input: "whoami",
+          shell: "sh",
           connectionToken: "token",
           daemonId: "daemon",
         },
       });
     });
-  assert.equal((await run()).text, "app\n");
-  assert.equal(confirmed, true);
-  assert.deepEqual(calls.at(-1), ["exec", id, "/bin/sh", "-c", "whoami"]);
+  assert.equal((await run()).offerId, "public-offer");
+  assert.equal(
+    JSON.stringify(offers[0]),
+    JSON.stringify({
+      program: "docker",
+      args: ["exec", "-it", id, "/bin/sh"],
+      expectedConnectionToken: "token",
+    }),
+  );
+  assert.ok(commands.every((args) => args[0] !== "exec"));
   await new Promise((resolve) => setImmediate(resolve));
   deny = true;
-  const before = calls.filter((args) => args[0] === "exec").length;
-  assert.match(String((await run()).error), /permission.*confirm.*denied/i);
-  assert.equal(calls.filter((args) => args[0] === "exec").length, before);
+  assert.match(String((await run()).error), /Permission denied/);
+  assert.equal(offers.length, 1);
 });

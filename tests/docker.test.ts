@@ -35,9 +35,13 @@ test("only full IDs and bounded typed operations are accepted", () => {
   ])
     assert.throws(() => parseQuery({ ...context, ...value }));
   assert.throws(() => parseQuery({ type: "logs", id, requestId: "request-1" }));
+  assert.throws(
+    () => parseQuery({ ...context, type: "exec", id, input: "echo hello" }),
+    /Unsupported/,
+  );
   assert.equal(
-    parseQuery({ ...context, type: "exec", id, input: "echo hello" }).type,
-    "exec",
+    parseQuery({ ...context, type: "terminal", id, shell: "sh" }).type,
+    "terminal",
   );
 });
 test("Docker JSON lines are bounded and Compose labels are parsed", () => {

@@ -1,6 +1,6 @@
 import { containerId, record } from "./docker";
 import type { Action, Connection, Section } from "./types";
-import { validateExecInput, type Shell } from "./exec";
+import type { Shell } from "./exec";
 export type Request = (
   | { type: "snapshot" }
   | ((
@@ -9,7 +9,7 @@ export type Request = (
       | { type: "logs"; id: string }
       | { type: "resources"; section: Exclude<Section, "containers"> }
       | { type: "action"; action: Action; ids: string[] }
-      | { type: "exec"; id: string; input: string; shell?: Shell }
+      | { type: "terminal"; id: string; shell: Shell }
     ) &
       Connection)
 ) & { requestId: string };
@@ -67,20 +67,29 @@ export function parseQuery(message: unknown): Request {
       throw new Error("Duplicate container selection.");
     return { ...context, type: "action", action: data.action as Action, ids };
   }
-  if (data.type === "exec") {
-    const input = validateExecInput(data.input);
+  if (data.type === "terminal") {
     if (
       data.shell !== undefined &&
       data.shell !== "sh" &&
       data.shell !== "bash"
     )
       throw new Error("Choose sh or bash.");
+    const allowed = new Set([
+      "type",
+      "requestId",
+      "deadlineAt",
+      "id",
+      "shell",
+      "connectionToken",
+      "daemonId",
+    ]);
+    if (Object.keys(data).some((key) => !allowed.has(key)))
+      throw new Error("Unsupported terminal proposal field.");
     return {
       ...context,
-      type: "exec",
+      type: "terminal",
       id: containerId(data.id),
-      input,
-      shell: data.shell as Shell | undefined,
+      shell: data.shell === "bash" ? "bash" : "sh",
     };
   }
   throw new Error("Unsupported Docker operation.");
