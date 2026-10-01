@@ -5,7 +5,7 @@
 Support monitor → investigate → act safely on the pane's server. Today the plugin
 has container search, Compose/network grouping, metrics, inspection, logs,
 confirmed actions and read-only image/volume/network lists. Grouping is not Compose
-management. The bounded command runner is not an interactive terminal.
+management. The local terminal candidate replaces the bounded command runner.
 
 ## Phase 1 — Reliability (in progress)
 
@@ -32,6 +32,39 @@ Interactive container terminals should open a native terminal pane with resize
 and input support. This requires a supported, permission-scoped Zync capability;
 do not hardcode workspace layout or grant iframe access to host internals. Keep
 the copied-command fallback until that capability is available.
+
+### Embedded terminal integration candidate
+
+The local candidate uses the published SDK 2.1.0-beta.4 and the updated Zync checkout.
+Exec / Shell directly shows the terminal UI and automatically prepares an offer
+for the selected sh/bash shell, without launching a process.
+The worker verifies the connection token, Docker daemon and running container;
+only fixed `docker exec -it <full-container-id> /bin/sh` (or `/bin/bash`) argv
+can be proposed. When the surface is visible, the updated host opens its trusted
+confirmation automatically; approve the session there. Output and input are
+never exposed to Docker's iframe or worker.
+
+After the first Exec visit, the shell stays mounted while switching detail tabs
+or Docker resource sections. Its hidden surface reports no geometry; returning
+uses the same session. Changing the container/shell/connection, closing the
+inspector or slot, or disposing the plugin still cleans up the session. Retention
+is bounded to the selected container, not an accumulating cache of containers.
+No automatic start, reconnect or retry is performed.
+If the worker API or surface is unavailable, use the copied shell command in
+the server's terminal. The one-shot command runner and its worker protocol are
+removed. Pending offers abandoned before mounting expire on the host. Permission
+approval allows proposals only; each new session needs separate host approval.
+Typing in an already approved session does not require per-command confirmation.
+Daemon/container checks are preflight checks, not a lock: remote state may change
+while the host approval is pending, and Docker can reject the final exec.
+
+Do not publish this package yet. Older desktop versions reject unknown manifest
+permissions, including optional ones. Before release, raise `engines.zync` to
+the first published desktop version supporting `ssh.terminal.open`; runtime
+fallback cannot make this new manifest installable on older hosts. The existing
+0.2.0 release and registry remain unchanged. Complete packaged desktop and real
+SSH/container lifecycle tests, including the host's documented cancellation and
+flood-profile release gates, before shipping the terminal integration.
 
 ## Phase 3 — Compose-aware workflows
 
@@ -80,10 +113,10 @@ must never be presented as already completed.
 
 ## Permissions and release gates
 
-Today: `ui.pane.register`, `ssh.command.execute`, `ui.dialog.confirm`. Docker uses
-the SSH account's authority and may be root-equivalent. `allow-forms` is an iframe
-sandbox attribute, not a plugin grant; the command runner does not require it.
-Interactive PTY support needs a separate host capability design.
+Required: `ui.pane.register`, `ssh.command.execute`, `ui.dialog.confirm`; optional:
+`ssh.terminal.open`. Docker uses the SSH account's authority and may be
+root-equivalent. The shell slot does not require `allow-forms` or broader iframe
+permissions. Interactive PTY access uses the separate host terminal capability.
 
 Before publication: unit and packaged-worker tests, browser/sandbox regression
 tests, build validation, formatting, real-server disposable-container smoke tests,
