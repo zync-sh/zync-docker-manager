@@ -85,4 +85,4 @@ jobs:
             echo 'Release already exists. Refusing to replace its assets.' >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" verified/*-signed.zip verified/*-signed.zip.sha256 --verify-tag --title "Docker Manager $RELEASE_TAG" --notes 'Signed Docker Manager package. Requires Zync 2.33.1+ with Plugin API 2.1. Trusted marketplace availability requires separate registry signing and publication. Signature verification does not establish plugin behavior safety.'
+          gh release create "$RELEASE_TAG" verified/*-signed.zip verified/*-signed.zip.sha256 --verify-tag --title "Docker Manager $RELEASE_TAG" --notes 'Signed Docker Manager package. Requires a compatible Zync build with embedded plugin terminal and overlay support. Trusted marketplace availability requires separate registry signing and publication after that host release is available. Signature verification does not establish plugin behavior safety.'

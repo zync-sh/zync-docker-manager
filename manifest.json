@@ -3,7 +3,7 @@
   "id": "com.zync.plugin.docker-manager",
   "name": "Docker Manager",
   "icon": "icons/docker-manager.svg",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "com.zync",
   "license": "MIT",
   "description": "Manage containers, inspect Docker resources, and view metrics and logs on this pane's server.",

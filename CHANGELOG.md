@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0
+
+- Replace the command runner with host-owned interactive container terminals using
+  the published SDK `2.1.0-beta.4` (`1a7f979`).
+- Improve workspace navigation, inspector sizing, log controls, clipboard fallback
+  and dropdown overlays; preserve terminal sessions across section changes (`d22cc74`).
+- Fix search Escape handling and initial dropdown overlay synchronization. Host
+  geometry browser tests skip when the sibling Zync checkout is unavailable.
+- Document terminal integration and implementation references (`5a41875`).
+
+This version requires a compatible Zync build with embedded plugin terminal and
+overlay support. Publish marketplace metadata only after that host release is available.
+
 ## Unreleased
 
 ### Implementation references
